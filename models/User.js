@@ -11,7 +11,7 @@ const userSchema = mongoose.Schema({
     email: {
         type:String,
         trim: true,
-        uniqure:1
+        unique:1
     },
     password: {
         type: String,
@@ -61,8 +61,11 @@ userSchema.methods.comparePassword = function(plainPassword, callback) {
 
     //plainPassword == 암호화된 비밀번호 
     bcrypt.compare(plainPassword, this.password, function(err, isMatch) {
-        if(err) return callback(err),
-        callback(null, isMatch)
+        if(err) {
+
+         return callback(err);
+        }
+        callback(null, isMatch);
     })
 
 }
