@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const saltRounds = 10
+const jwt = require('jsonwebtoken');
 
 const userSchema = mongoose.Schema({
     name:{
@@ -25,7 +26,7 @@ const userSchema = mongoose.Schema({
         default:0
     },
     image: String,
-    token: {
+    token:{
         type:String
     },
     tokenExp:{
@@ -38,27 +39,68 @@ userSchema.pre('save', function( next ) {
     var user = this;
 
 
-
-    //비밀번호를 암호화 시킴.
-    bcrypt.genSalt(saltRounds, function(err, salt){
-        if(err) return next(err)
-
-        if(user.isModified('password')) {
-
-        bcrypt.hash(user.password , salt, function(err, hash) {
+    if(user.isModified('password')) {
+        bcrypt.genSalt(saltRounds, function(err, salt) {
             if(err) return next(err)
-            user.password=hash //유저 비밀번호를 암호화된 비밀번호로 변경.
-        })
 
+            bcrypt.hash(user.password, salt, function(err, hash) {
+                if(err) return next(err)
+                user.password = hash
+                next()
+            })
+        })
+    } else {
+        next()
     }
+
+})
+ 
+ 
+
+userSchema.methods.comparePassword = function(plainPassword, callback) {
+
+    //plainPassword == 암호화된 비밀번호 
+    bcrypt.compare(plainPassword, this.password, function(err, isMatch) {
+        if(err) return callback(err),
+        callback(null, isMatch)
+    })
+
+}
+
+
+userSchema.methods.generateToken = function(callback) {
+
+
+    var user = this;
+
+    var token = jwt.sign(user._id.toHexString(), 'secretToken')
+
+    user.token = token
+
+    user.save(function(err, user) {
+        if(err) return callback(err)
+        callback(null, user)
     })
 
 
-    next()
+}
 
-     
+userSchema.statics.findByToken = function (token, callback) {
 
-})
+    var user = this;
+
+    //토큰을 decode(복호화)
+
+
+    jwt.verify(token, 'secretToken', function(err, decoded) {
+
+        user.findOne({"_id": decoded, "token": token}, function(err, user){
+               if(err) return callback(err) 
+        })
+    })
+
+}
+
 
 const User = mongoose.model('User', userSchema)
 
